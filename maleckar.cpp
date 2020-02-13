@@ -226,89 +226,11 @@ struct State {
     double F2;
 };
 
-void initConsts(double *CONSTANTS, double *RATES, double *STATES) {
-    STATES[0] = -74.031982;
-    CONSTANTS[0] = 8314;
-    CONSTANTS[1] = 306.15;
-    CONSTANTS[2] = 96487;
-    CONSTANTS[3] = 50;
-    CONSTANTS[4] = 0;
-    CONSTANTS[5] = 1; // CL
-    CONSTANTS[6] = 0.001; // 0.006, stim_dur
-    CONSTANTS[7] = -40; // -15, amp
-    CONSTANTS[8] = 0.0018;
-    STATES[1] = 130.022096;
-    STATES[2] = 8.516766;
-    STATES[3] = 0.003289;
-    STATES[4] = 0.877202;
-    STATES[5] = 0.873881;
-    CONSTANTS[9] = 6.75;
-    CONSTANTS[10] = 60;
-    CONSTANTS[11] = 0.025;
-    STATES[6] = 7.1e-5;
-    STATES[7] = 0.000014;
-    STATES[8] = 0.998597;
-    STATES[9] = 0.998586;
-    CONSTANTS[12] = 8.25;
-    STATES[10] = 5.560224;
-    STATES[11] = 129.485991;
-    STATES[12] = 0.001089;
-    STATES[13] = 0.948597;
-    CONSTANTS[13] = 2.25;
-    STATES[14] = 0.000367;
-    STATES[15] = 0.96729;
-    CONSTANTS[14] = 3.1;
-    CONSTANTS[15] = 1;
-    CONSTANTS[16] = 0.5;
-    STATES[16] = 0.004374;
-    STATES[17] = 0.000053;
-    CONSTANTS[17] = 0.060599;
-    CONSTANTS[18] = 0.078681;
-    STATES[18] = 1.815768;
-    STATES[19] = 6.5e-5;
-    CONSTANTS[19] = 1;
-    CONSTANTS[20] = 68.55;
-    CONSTANTS[21] = 36.4829;
-    CONSTANTS[22] = 4;
-    CONSTANTS[23] = 0.0002;
-    CONSTANTS[24] = 0.0374842;
-    CONSTANTS[25] = 0.0003;
-    CONSTANTS[26] = 0.45;
-    CONSTANTS[27] = 1e-24;
-    CONSTANTS[28] = 0;
-    CONSTANTS[29] = 0.005884;
-    CONSTANTS[30] = 0.00011768;
-    CONSTANTS[31] = 0.01;
-    STATES[20] = 0.026766;
-    STATES[21] = 0.012922;
-    STATES[22] = 0.190369;
-    STATES[23] = 0.714463;
-    STATES[24] = 1.38222;
-    CONSTANTS[32] = 2.5;
-    CONSTANTS[33] = 0.000800224;
-    CONSTANTS[34] = 14.3;
-    CONSTANTS[35] = 10;
-    CONSTANTS[36] = 24.7;
-    CONSTANTS[37] = 130;
-    CONSTANTS[38] = 1.8;
-    CONSTANTS[39] = 5.4;
-    CONSTANTS[40] = 2800;
-    CONSTANTS[41] = 0.0003;
-    CONSTANTS[42] = 0.5;
-    CONSTANTS[43] = 0.4;
-    CONSTANTS[44] = 200000;
-    STATES[25] = 0.632613;
-    STATES[26] = 0.649195;
-    CONSTANTS[45] = 0.0003969;
-    CONSTANTS[46] = 0.0000441;
-    CONSTANTS[47] = 0.815;
-    STATES[27] = 0.431547;
-    STATES[28] = 0.470055;
-    STATES[29] = 0.002814;
-    CONSTANTS[48] = 0.01;
-    CONSTANTS[49] = 0.0003;
-    CONSTANTS[50] = 0.003;
-}
+void initialize_states_default(double *STATES);
+void initialize_states(double *STATES, State *initial_state);
+void create_state_struct_from_array(State *S, double *STATES);
+void initialize_constants(double *CONSTANTS, double *scaling_coefficients, double CL /* in seconds */, double amp);
+void computeRates(double VOI, double *CONSTANTS, double *RATES, double *STATES, double *ALGEBRAIC);
 
 
 void initialize_constants(double *CONSTANTS, double *scaling_coefficients, double CL /* in seconds */, double amp) {
@@ -356,11 +278,11 @@ void initialize_constants(double *CONSTANTS, double *scaling_coefficients, doubl
     CONSTANTS[37] = 130;
     CONSTANTS[38] = 1.8;
     CONSTANTS[39] = 5.4;
-    CONSTANTS[40] = 2800;
+    CONSTANTS[40] = 2800 * scaling_coefficients[12]; // I_up_max
     CONSTANTS[41] = 0.0003;
     CONSTANTS[42] = 0.5;
     CONSTANTS[43] = 0.4;
-    CONSTANTS[44] = 200000;
+    CONSTANTS[44] = 200000 * scaling_coefficients[13]; // alpha_rel
     CONSTANTS[45] = 0.0003969;
     CONSTANTS[46] = 0.0000441;
     CONSTANTS[47] = 0.815;
@@ -403,7 +325,9 @@ void initialize_states_default(double *STATES) {
     STATES[29] = 0.002814;
 }
 
+
 void computeRates(double VOI, double *CONSTANTS, double *RATES, double *STATES, double *ALGEBRAIC) {
+    CONSTANTS[10] = ((CONSTANTS[0] * CONSTANTS[1]) / CONSTANTS[2]) * log(STATES[18] / STATES[6]); // E_Ca = RT/F * log(Ca_c / Ca_d)
     ALGEBRAIC[12] = 2000.00 * CONSTANTS[32] * ((1.00000 - STATES[22]) - STATES[23]) - 666.000 * STATES[23];
     RATES[23] = ALGEBRAIC[12];
     ALGEBRAIC[18] = 0.00350000 * exp(((-STATES[0] * STATES[0]) / 30.0000) / 30.0000) + 0.00150000;
@@ -544,107 +468,6 @@ void computeRates(double VOI, double *CONSTANTS, double *RATES, double *STATES, 
     RATES[25] = (ALGEBRAIC[68] - ALGEBRAIC[66]) / (2.00000 * CONSTANTS[46] * CONSTANTS[2]) - 31.0000 * ALGEBRAIC[69];
 }
 
-void computeVariables(double VOI, double *CONSTANTS, double *RATES, double *STATES, double *ALGEBRAIC) {
-    ALGEBRAIC[12] = 2000.00 * CONSTANTS[32] * ((1.00000 - STATES[22]) - STATES[23]) - 666.000 * STATES[23];
-    ALGEBRAIC[18] = 0.00350000 * exp(((-STATES[0] * STATES[0]) / 30.0000) / 30.0000) + 0.00150000;
-    ALGEBRAIC[6] = 1.00000 / (1.00000 + exp((STATES[0] - 1.00000) / -11.0000));
-    ALGEBRAIC[8] = 1.00000 / (1.00000 + exp(-(STATES[0] + 6.00000) / 8.60000));
-    ALGEBRAIC[20] = 0.00900000 / (1.00000 + exp((STATES[0] + 5.00000) / 12.0000)) + 0.000500000;
-    ALGEBRAIC[9] = 1.00000 / (1.00000 + exp((STATES[0] + 7.50000) / 10.0000));
-    ALGEBRAIC[21] = 0.590000 / (1.00000 + exp((STATES[0] + 60.0000) / 10.0000)) + 3.05000;
-    ALGEBRAIC[14] = 1.00000 / (1.00000 + exp((STATES[0] + 27.1200) / -8.21000));
-    ALGEBRAIC[2] = (STATES[0] + 25.5700) / 28.8000;
-    ALGEBRAIC[26] = 4.20000e-05 * exp(-ALGEBRAIC[2] * ALGEBRAIC[2]) + 2.40000e-05;
-    ALGEBRAIC[3] = 1.00000 / (1.00000 + exp((STATES[0] + 63.6000) / 5.30000));
-    ALGEBRAIC[15] = 1.00000 / (1.00000 + exp((STATES[0] + 35.1000) / 3.20000));
-    ALGEBRAIC[27] = 0.0300000 * ALGEBRAIC[15] + 0.000300000;
-    ALGEBRAIC[28] = 0.120000 * ALGEBRAIC[15] + 0.00300000;
-    ALGEBRAIC[4] = 1.00000 / (1.00000 + exp((STATES[0] + 9.00000) / -5.80000));
-    ALGEBRAIC[16] = (STATES[0] + 35.0000) / 30.0000;
-    ALGEBRAIC[29] = 0.00270000 * exp(-ALGEBRAIC[16] * ALGEBRAIC[16]) + 0.00200000;
-    ALGEBRAIC[5] = 1.00000 / (1.00000 + exp((STATES[0] + 27.4000) / 7.10000));
-    ALGEBRAIC[17] = STATES[0] + 40.0000;
-    ALGEBRAIC[30] = 0.161000 * exp(((-ALGEBRAIC[17] * ALGEBRAIC[17]) / 14.4000) / 14.4000) + 0.0100000;
-    ALGEBRAIC[31] = 1.33230 * exp(((-ALGEBRAIC[17] * ALGEBRAIC[17]) / 14.2000) / 14.2000) + 0.0626000;
-    ALGEBRAIC[19] = (STATES[0] + 52.4500) / 15.8827;
-    ALGEBRAIC[32] = 0.0256350 * exp(-ALGEBRAIC[19] * ALGEBRAIC[19]) + 0.0141400;
-    ALGEBRAIC[7] = 1.00000 / (1.00000 + exp((STATES[0] + 40.5000) / 11.5000));
-    ALGEBRAIC[22] = (STATES[0] - 20.0000) / 20.0000;
-    ALGEBRAIC[33] = 0.700000 + 0.400000 * exp(-ALGEBRAIC[22] * ALGEBRAIC[22]);
-    ALGEBRAIC[10] = 1.00000 / (1.00000 + exp((STATES[0] - 19.9000) / -12.7000));
-    ALGEBRAIC[23] = (STATES[0] + 20.1376) / 22.1996;
-    ALGEBRAIC[34] = 0.0311800 + 0.217180 * exp(-ALGEBRAIC[23] * ALGEBRAIC[23]);
-    ALGEBRAIC[11] = 1.00000 / (1.00000 + exp((STATES[0] + 15.0000) / -6.00000));
-    ALGEBRAIC[13] = STATES[6] / (STATES[6] + CONSTANTS[50]);
-    ALGEBRAIC[36] = ALGEBRAIC[13] * ALGEBRAIC[13] * ALGEBRAIC[13] * ALGEBRAIC[13];
-    ALGEBRAIC[25] = STATES[19] / (STATES[19] + CONSTANTS[49]);
-    ALGEBRAIC[38] = ALGEBRAIC[25] * ALGEBRAIC[25] * ALGEBRAIC[25] * ALGEBRAIC[25];
-    ALGEBRAIC[40] = 203.800 * (ALGEBRAIC[38] + ALGEBRAIC[36]);
-    ALGEBRAIC[42] = 33.9600 + 339.600 * ALGEBRAIC[38];
-    ALGEBRAIC[43] = ((CONSTANTS[0] * CONSTANTS[1]) / CONSTANTS[2]) * log(STATES[10] / STATES[11]);
-    ALGEBRAIC[44] = CONSTANTS[12] * STATES[12] * STATES[13] * (STATES[0] - ALGEBRAIC[43]);
-    ALGEBRAIC[45] = CONSTANTS[13] * STATES[14] * STATES[15] * (STATES[0] - ALGEBRAIC[43]);
-    ALGEBRAIC[46] = (CONSTANTS[14] * pow(STATES[10] / 1.00000, 0.445700) * (STATES[0] - ALGEBRAIC[43])) / (1.00000 +
-                                                                                                           exp((1.50000 *
-                                                                                                                ((STATES[0] -
-                                                                                                                  ALGEBRAIC[43]) +
-                                                                                                                 3.60000) *
-                                                                                                                CONSTANTS[2]) /
-                                                                                                               (CONSTANTS[0] *
-                                                                                                                CONSTANTS[1])));
-    ALGEBRAIC[48] = 1.00000 / (1.00000 + exp((STATES[0] + 55.0000) / 24.0000));
-    ALGEBRAIC[49] = CONSTANTS[16] * STATES[17] * ALGEBRAIC[48] * (STATES[0] - ALGEBRAIC[43]);
-    ALGEBRAIC[47] = CONSTANTS[15] * STATES[16] * (STATES[0] - ALGEBRAIC[43]);
-    ALGEBRAIC[53] = pow(STATES[2], 1.50000);
-    ALGEBRAIC[54] = (((((CONSTANTS[20] * STATES[10]) / (STATES[10] + CONSTANTS[19])) * ALGEBRAIC[53]) /
-                      (ALGEBRAIC[53] + CONSTANTS[21])) * (STATES[0] + 150.000)) / (STATES[0] + 200.000);
-    ALGEBRAIC[1] = floor(VOI / CONSTANTS[5]) * CONSTANTS[5];
-    ALGEBRAIC[24] = (VOI - ALGEBRAIC[1] >= CONSTANTS[4] && VOI - ALGEBRAIC[1] <= CONSTANTS[4] + CONSTANTS[6]
-                     ? CONSTANTS[7] : 0.00000);
-    ALGEBRAIC[35] = ((CONSTANTS[0] * CONSTANTS[1]) / CONSTANTS[2]) * log(STATES[1] / STATES[2]);
-    ALGEBRAIC[37] =
-            (((CONSTANTS[8] * STATES[3] * STATES[3] * STATES[3] * (0.900000 * STATES[4] + 0.100000 * STATES[5]) *
-               STATES[1] * STATES[0] * CONSTANTS[2] * CONSTANTS[2]) / (CONSTANTS[0] * CONSTANTS[1])) *
-             (exp(((STATES[0] - ALGEBRAIC[35]) * CONSTANTS[2]) / (CONSTANTS[0] * CONSTANTS[1])) - 1.00000)) /
-            (exp((STATES[0] * CONSTANTS[2]) / (CONSTANTS[0] * CONSTANTS[1])) - 1.00000);
-    ALGEBRAIC[50] = CONSTANTS[17] * (STATES[0] - ALGEBRAIC[35]);
-    ALGEBRAIC[56] = (CONSTANTS[24] * (STATES[2] * STATES[2] * STATES[2] * STATES[18] *
-                                      exp((CONSTANTS[2] * STATES[0] * CONSTANTS[26]) / (CONSTANTS[0] * CONSTANTS[1])) -
-                                      STATES[1] * STATES[1] * STATES[1] * STATES[19] *
-                                      exp(((CONSTANTS[26] - 1.00000) * STATES[0] * CONSTANTS[2]) /
-                                          (CONSTANTS[0] * CONSTANTS[1])))) / (1.00000 + CONSTANTS[25] *
-                                                                                        (STATES[1] * STATES[1] *
-                                                                                         STATES[1] * STATES[19] +
-                                                                                         STATES[2] * STATES[2] *
-                                                                                         STATES[2] * STATES[18]));
-    ALGEBRAIC[39] = STATES[6] / (STATES[6] + CONSTANTS[11]);
-    ALGEBRAIC[41] = CONSTANTS[9] * STATES[7] * (ALGEBRAIC[39] * STATES[8] + (1.00000 - ALGEBRAIC[39]) * STATES[9]) *
-                    (STATES[0] - CONSTANTS[10]);
-    ALGEBRAIC[51] = ((CONSTANTS[0] * CONSTANTS[1]) / (2.00000 * CONSTANTS[2])) * log(STATES[18] / STATES[19]);
-    ALGEBRAIC[52] = CONSTANTS[18] * (STATES[0] - ALGEBRAIC[51]);
-    ALGEBRAIC[55] = (CONSTANTS[22] * STATES[19]) / (STATES[19] + CONSTANTS[23]);
-    ALGEBRAIC[58] = ((STATES[6] - STATES[19]) * 2.00000 * CONSTANTS[30] * CONSTANTS[2]) / CONSTANTS[31];
-    ALGEBRAIC[57] = (10.0000 / (1.00000 + (9.13652 * pow(1.00000, 0.477811)) / pow(CONSTANTS[27], 0.477811))) *
-                    (0.0517000 + 0.451600 / (1.00000 + exp((STATES[0] + 59.5300) / 17.1800))) *
-                    (STATES[0] - ALGEBRAIC[43]) * CONSTANTS[3];
-    ALGEBRAIC[59] = (ALGEBRAIC[37] + ALGEBRAIC[41] + ALGEBRAIC[44] + ALGEBRAIC[45] + ALGEBRAIC[46] + ALGEBRAIC[49] +
-                     ALGEBRAIC[47] + ALGEBRAIC[50] + ALGEBRAIC[52] + ALGEBRAIC[54] + ALGEBRAIC[55] + ALGEBRAIC[56] +
-                     ALGEBRAIC[57]) / CONSTANTS[3] + ALGEBRAIC[24];
-    ALGEBRAIC[60] = 200000. * STATES[19] * (1.00000 - STATES[20]) - 476.000 * STATES[20];
-    ALGEBRAIC[61] = 78400.0 * STATES[19] * (1.00000 - STATES[21]) - 392.000 * STATES[21];
-    ALGEBRAIC[62] = 200000. * STATES[19] * ((1.00000 - STATES[22]) - STATES[23]) - 6.60000 * STATES[22];
-    ALGEBRAIC[63] = 0.0800000 * ALGEBRAIC[61] + 0.160000 * ALGEBRAIC[62] + 0.0450000 * ALGEBRAIC[60];
-    ALGEBRAIC[67] = (CONSTANTS[40] *
-                     (STATES[19] / CONSTANTS[41] - (CONSTANTS[43] * CONSTANTS[43] * STATES[26]) / CONSTANTS[42])) /
-                    ((STATES[19] + CONSTANTS[41]) / CONSTANTS[41] +
-                     (CONSTANTS[43] * (STATES[26] + CONSTANTS[42])) / CONSTANTS[42]);
-    ALGEBRAIC[64] = STATES[29] / (STATES[29] + 0.250000);
-    ALGEBRAIC[65] = ALGEBRAIC[64] * ALGEBRAIC[64];
-    ALGEBRAIC[66] = CONSTANTS[44] * ALGEBRAIC[65] * (STATES[25] - STATES[19]);
-    ALGEBRAIC[68] = ((STATES[26] - STATES[25]) * 2.00000 * CONSTANTS[46] * CONSTANTS[2]) / CONSTANTS[48];
-    ALGEBRAIC[69] = 480.000 * STATES[25] * (1.00000 - STATES[27]) - 400.000 * STATES[27];
-    ALGEBRAIC[0] = 0.0500000 * STATES[0];
-}
 
 void create_state_struct_from_array(State *S, double *STATES) {
     S->V = STATES[0];
@@ -678,6 +501,7 @@ void create_state_struct_from_array(State *S, double *STATES) {
     S->F1 = STATES[28];
     S->F2 = STATES[29];
 }
+
 
 void initialize_states(double *STATES, State *initial_state) {
     STATES[0] = initial_state->V;
@@ -723,7 +547,12 @@ void print_to_scv(double *STATES, std::ofstream &file_csv) {
 
     file_csv.precision(5);
     file_csv << std::scientific;
-    file_csv << STATES[0] << "," << STATES[1] << "," << STATES[2] << "," << STATES[3] << "," << STATES[4] << "," << STATES[5] << "," << STATES[6] << "," << STATES[7] << "," << STATES[8] << "," << STATES[9] << "," << STATES[10] << "," << STATES[11] << "," << STATES[12] << "," << STATES[13] << "," << STATES[14] << "," << STATES[15] << "," << STATES[16] << "," << STATES[17] << "," << STATES[18] << "," << STATES[19] << "," << STATES[20] << "," << STATES[21] << "," << STATES[22] << "," << STATES[23] << "," << STATES[24] << "," << STATES[25] << "," << STATES[26] << "," << STATES[27] << "," << STATES[28] << "," << STATES[29];
+    file_csv << STATES[0] << "," << STATES[1] << "," << STATES[2] << "," << STATES[3] << "," << STATES[4] << ","
+             << STATES[5] << "," << STATES[6] << "," << STATES[7] << "," << STATES[8] << "," << STATES[9] << ","
+             << STATES[10] << "," << STATES[11] << "," << STATES[12] << "," << STATES[13] << "," << STATES[14] << ","
+             << STATES[15] << "," << STATES[16] << "," << STATES[17] << "," << STATES[18] << "," << STATES[19] << ","
+             << STATES[20] << "," << STATES[21] << "," << STATES[22] << "," << STATES[23] << "," << STATES[24] << ","
+             << STATES[25] << "," << STATES[26] << "," << STATES[27] << "," << STATES[28] << "," << STATES[29];
     file_csv << std::endl;
 }
 
@@ -739,18 +568,15 @@ int main() {
     double *STATES = new double[STATE_ARRAY_SIZE];
     double *RATES = new double[STATE_ARRAY_SIZE];
 
-    double scaling_coefficients[12] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-    /*
-    double scaling_coefficients[12] = {8.53409, 6.78751, 0.279638, 0.879857,
-                                       0.871593, 0.69448, 1.69289, 0.0309974,
-                                       0.646055, 2.22909, 0.994974, 4.82414};
-    */
+    double scaling_coefficients[14] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+
     //initConsts(CONSTANTS, RATES, STATES);
 
     double CL = 1000;
     double amp = -40;
     initialize_constants(CONSTANTS, scaling_coefficients, CL / 1000, amp);
 
+    /*
     struct State initial_state;
     FILE *fin;
     std::string state_initial_filename = "states/state_1000.dat";
@@ -759,6 +585,7 @@ int main() {
     fclose(fin);
 
     initialize_states(STATES, &initial_state);
+     */
     initialize_states_default(STATES);
 
     std::ofstream file_csv;
