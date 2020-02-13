@@ -186,6 +186,19 @@
  * RATES[27] is d/dt O_Calse in component Ca_handling_by_the_SR (dimensionless).
  * RATES[26] is d/dt Ca_up in component Ca_handling_by_the_SR (millimolar).
  * RATES[25] is d/dt Ca_rel in component Ca_handling_by_the_SR (millimolar).
+ *
+ * Added by Andrey
+ * CONSTANTS[51] is pca_ord (cm/s)
+ * ALGEBRAIC[70] is ICaL_ORd
+ * STATES[30] is d_ord; // ORd
+ * STATES[31] is ff;
+ * STATES[32] is fs;
+ * STATES[33] is fcaf;
+ * STATES[34] is fcas;
+ * STATES[35] is jca;
+ * STATES[36] is ffp;
+ * STATES[37] is fcafp;
+ * STATES[38] is nca;
  */
 
 #include <cmath>
@@ -224,14 +237,103 @@ struct State {
     double O_Calse;
     double F1;
     double F2;
+
+    double d_ord; // ORd
+    double ff;
+    double fs;
+    double fcaf;
+    double fcas;
+    double jca;
+    double ffp;
+    double fcafp;
+    double nca;
 };
 
-void initialize_states_default(double *STATES);
-void initialize_states(double *STATES, State *initial_state);
-void create_state_struct_from_array(State *S, double *STATES);
-void initialize_constants(double *CONSTANTS, double *scaling_coefficients, double CL /* in seconds */, double amp);
-void computeRates(double VOI, double *CONSTANTS, double *RATES, double *STATES, double *ALGEBRAIC);
+void create_state_struct_from_array(State *S, double *STATES) {
+    S->V = STATES[0];
+    S->Na_c = STATES[1];
+    S->Na_i = STATES[2];
+    S->m = STATES[3];
+    S->h1 = STATES[4];
+    S->h2 = STATES[5];
+    S->Ca_d = STATES[6];
+    S->d_L = STATES[7];
+    S->f_L1 = STATES[8];
+    S->f_L2 = STATES[9];
+    S->K_c = STATES[10];
+    S->K_i = STATES[11];
+    S->r = STATES[12];
+    S->s = STATES[13];
+    S->a_ur = STATES[14];
+    S->i_ur = STATES[15];
+    S->n = STATES[16];
+    S->pa = STATES[17];
+    S->Ca_c = STATES[18];
+    S->Ca_i = STATES[19];
+    S->O_C = STATES[20];
+    S->O_TC = STATES[21];
+    S->O_TMgC = STATES[22];
+    S->O_TMgMg = STATES[23];
+    S->O = STATES[24];
+    S->Ca_rel = STATES[25];
+    S->Ca_up = STATES[26];
+    S->O_Calse = STATES[27];
+    S->F1 = STATES[28];
+    S->F2 = STATES[29];
 
+    S->d_ord = STATES[30]; // ORd
+    S->ff = STATES[31];
+    S->fs = STATES[32];
+    S->fcaf = STATES[33];
+    S->fcas = STATES[34];
+    S->jca = STATES[35];
+    S->ffp = STATES[36];
+    S->fcafp = STATES[37];
+    S->nca = STATES[38];
+}
+
+void initialize_states(double *STATES, State *initial_state) {
+    STATES[0] = initial_state->V;
+    STATES[1] = initial_state->Na_c;
+    STATES[2] = initial_state->Na_i;
+    STATES[3] = initial_state->m;
+    STATES[4] = initial_state->h1;
+    STATES[5] = initial_state->h2;
+    STATES[6] = initial_state->Ca_d;
+    STATES[7] = initial_state->d_L;
+    STATES[8] = initial_state->f_L1;
+    STATES[9] = initial_state->f_L2;
+    STATES[10] = initial_state->K_c;
+    STATES[11] = initial_state->K_i;
+    STATES[12] = initial_state->r;
+    STATES[13] = initial_state->s;
+    STATES[14] = initial_state->a_ur;
+    STATES[15] = initial_state->i_ur;
+    STATES[16] = initial_state->n;
+    STATES[17] = initial_state->pa;
+    STATES[18] = initial_state->Ca_c;
+    STATES[19] = initial_state->Ca_i;
+    STATES[20] = initial_state->O_C;
+    STATES[21] = initial_state->O_TC;
+    STATES[22] = initial_state->O_TMgC;
+    STATES[23] = initial_state->O_TMgMg;
+    STATES[24] = initial_state->O;
+    STATES[25] = initial_state->Ca_rel;
+    STATES[26] = initial_state->Ca_up;
+    STATES[27] = initial_state->O_Calse;
+    STATES[28] = initial_state->F1;
+    STATES[29] = initial_state->F2;
+
+    STATES[30] = initial_state->d_ord; // ORd
+    STATES[31] = initial_state->ff;
+    STATES[32] = initial_state->fs;
+    STATES[33] = initial_state->fcaf;
+    STATES[34] = initial_state->fcas;
+    STATES[35] = initial_state->jca;
+    STATES[36] = initial_state->ffp;
+    STATES[37] = initial_state->fcafp;
+    STATES[38] = initial_state->nca;
+}
 
 void initialize_constants(double *CONSTANTS, double *scaling_coefficients, double CL /* in seconds */, double amp) {
 
@@ -289,12 +391,14 @@ void initialize_constants(double *CONSTANTS, double *scaling_coefficients, doubl
     CONSTANTS[48] = 0.01;
     CONSTANTS[49] = 0.0003;
     CONSTANTS[50] = 0.003;
+
+    CONSTANTS[51] = 1e-4 * scaling_coefficients[14]; // pca_ord cm/s
 }
 
 
 void initialize_states_default(double *STATES) {
     STATES[0] = -74.031982;
-    STATES[1] = 130.022096;
+    STATES[1] = 130.022096; // Na_c -> 140 VANESSA
     STATES[2] = 8.516766;
     STATES[3] = 0.003289;
     STATES[4] = 0.877202;
@@ -303,7 +407,7 @@ void initialize_states_default(double *STATES) {
     STATES[7] = 0.000014;
     STATES[8] = 0.998597;
     STATES[9] = 0.998586;
-    STATES[10] = 5.560224;
+    STATES[10] = 5.560224; // K_i -> 4 VANESSA
     STATES[11] = 129.485991;
     STATES[12] = 0.001089;
     STATES[13] = 0.948597;
@@ -311,7 +415,7 @@ void initialize_states_default(double *STATES) {
     STATES[15] = 0.96729;
     STATES[16] = 0.004374;
     STATES[17] = 0.000053;
-    STATES[18] = 1.815768;
+    STATES[18] = 1.815768; // Ca_c ->2 VANESSA
     STATES[19] = 6.5e-5;
     STATES[20] = 0.026766;
     STATES[21] = 0.012922;
@@ -323,8 +427,106 @@ void initialize_states_default(double *STATES) {
     STATES[27] = 0.431547;
     STATES[28] = 0.470055;
     STATES[29] = 0.002814;
+    // ORd
+    STATES[30] = 0; // d_ord
+    STATES[31] = 1; // ff
+    STATES[32] = 1; // fs
+    STATES[33] = 1; // fcaf
+    STATES[34] = 1; // fcas
+    STATES[35] = 1; // jca
+    STATES[36] = 1; // ffp
+    STATES[37] = 1; // fcafp
+    STATES[38] = 0; // nca
 }
 
+inline double calculate_dss(double v) {
+    return 1.0 / (1.0 + exp((-(v + 3.940)) / 4.230));
+}
+
+inline double calculate_fss(double v) {
+    return 1.0 / (1.0 + exp((v + 19.58) / 3.696));
+}
+
+inline double calculate_tff(double v) {
+    return 7.0 + 1.0 / (0.0045 * exp(-(v + 20.0) / 10.0) +
+                        0.0045 * exp((v + 20.0) / 10.0));
+}
+
+inline double calculate_tfs(double v) {
+    return 1000.0 + 1.0 / (0.000035 * exp(-(v + 5.0) / 4.0) +
+                           0.000035 * exp((v + 5.0) / 6.0));
+}
+
+inline double calculate_tfcaf(double v) {
+    return 7.0 + 1.0 / (0.04 * exp(-(v - 4.0) / 7.0) +
+                        0.04 * exp((v - 4.0) / 7.0));
+}
+
+inline double calculate_tfcas(double v) {
+    return 100.0 + 1.0 / (0.00012 * exp(-v / 3.0) + 0.00012 * exp(v / 7.0));
+}
+
+inline double calculate_Afcaf(double v) {
+    return 0.3 + 0.6 / (1.0 + exp((v - 10.0) / 10.0));
+}
+
+inline double calculate_td(double v) {
+    return 0.6 + 1.0 / (exp(-0.05 * (v + 6.0)) + exp(0.09 * (v + 14.0)));
+}
+
+double ical_ord(struct State *S, struct State *D, double *CONSTANTS) {
+
+    double dss = calculate_dss(S->V); // dimensionless
+    double fss = calculate_fss(S->V); // dimensionless
+    double td = calculate_td(S->V) /*ms*/ / 1000.; // sec
+    double tff = calculate_tff(S->V) /*ms*/ / 1000.; // sec
+    double tfs = calculate_tfs(S->V) /*ms*/ / 1000.; // sec
+    double tfcaf = calculate_tfcaf(S->V) /*ms*/ / 1000.; // sec
+    double tfcas = calculate_tfcas(S->V) /*ms*/ / 1000.; // sec
+    double Afcaf = calculate_Afcaf(S->V); // dimensionless
+
+    double Aff = 0.6;
+    double Afs = 1.0 - Aff;
+    double f = Aff * S->ff + Afs * S->fs;
+    double fcass = fss;
+    double Afcas = 1.0 - Afcaf;
+    double fca = Afcaf * S->fcaf + Afcas * S->fcas;
+    double tjca = 75.0 /*ms*/ / 1000.; // sec
+    double tffp = 2.5 * tff;
+    double fp = Aff * S->ffp + Afs * S->fs;
+    double tfcafp = 2.5 * tfcaf;
+    double fcap = Afcaf * S->fcafp + Afcas * S->fcas;
+    double Kmn = 0.002; // mM
+    double k2n = 1000.0  /*1/ms*/ * 1000.; // sec
+    double km2n = S->jca * 1.0  /1/*ms*/ * 1000.; // sec
+    double anca = 1.0 / (k2n / km2n + pow(1.0 + Kmn / S->Ca_d, 4.0));
+
+    double R = CONSTANTS[0], TEMP = CONSTANTS[1], FRD = CONSTANTS[2];
+    double PhiCaL = 4.0 * (S->V * FRD * FRD / (R * TEMP)) *
+                    (S->Ca_d * exp(2.0 * (S->V * FRD / (R * TEMP))) - 0.341 * S->Ca_c) /
+                    (exp(2.0 * (S->V * FRD / (R * TEMP))) - 1.0);
+
+    // Rush-Larsen method was used in ORd
+    // Here I use simple Euler (like everywhere else)
+    D->d_ord = (dss - S->d_ord) / td; // NextSt->d = Sc->dss - (Sc->dss - S->d_ord) * exp(-Par->dt / td);
+    D->ff = (fss - S->ff) / tff; // NextSt->ff = Sc->fss - (Sc->fss - S->ff) * exp(-Par->dt / tff);
+    D->fs = (fss - S->fs) / tfs; // NextSt->fs = Sc->fss - (Sc->fss - S->fs) * exp(-Par->dt / tfs);
+    D->fcaf = (fcass - S->fcaf) / tfcaf; // NextSt->fcaf = fcass - (fcass - S->fcaf) * exp(-Par->dt / tfcaf);
+    D->fcas = (fcass - S->fcas) / tfcas; // NextSt->fcas = fcass - (fcass - S->fcas) * exp(-Par->dt / tfcas);
+    D->jca = (fcass - S->jca) / tjca; // NextSt->jca = fcass - (fcass - S->jca) * exp(-Par->dt / tjca);
+    D->ffp = (fss - S->ffp) / tffp; // NextSt->ffp = Sc->fss - (Sc->fss - S->ffp) * exp(-Par->dt / tffp);
+    D->fcafp = (fcass - S->fcafp) / tfcafp; // NextSt->fcafp = fcass - (fcass - S->fcafp) * exp(-Par->dt / tfcafp);
+    D->nca = anca * k2n - S->nca * km2n; // NextSt->nca = anca * k2n / km2n - (anca * k2n / km2n - S->nca) * exp(-km2n * Par->dt);
+
+    double PCa = CONSTANTS[51];
+    double ICaL_ORd_max = PCa * PhiCaL; // Col / m^3
+    double ICaL_ORd = ICaL_ORd_max * S->d_ord * (f  * (1.0 - S->nca) + S->jca * fca  * S->nca); //  10^(-2) Col / (m2 * s) => FLUX!
+
+    double Cm = CONSTANTS[3];
+    ICaL_ORd = ICaL_ORd * Cm /*nF*/; // in ORd model [ICaL] = [uA/uF]
+
+    return ICaL_ORd;
+}
 
 void computeRates(double VOI, double *CONSTANTS, double *RATES, double *STATES, double *ALGEBRAIC) {
     CONSTANTS[10] = ((CONSTANTS[0] * CONSTANTS[1]) / CONSTANTS[2]) * log(STATES[18] / STATES[6]); // E_Ca = RT/F * log(Ca_c / Ca_d)
@@ -424,22 +626,38 @@ void computeRates(double VOI, double *CONSTANTS, double *RATES, double *STATES, 
                (CONSTANTS[29] * CONSTANTS[2]);
     ALGEBRAIC[39] = STATES[6] / (STATES[6] + CONSTANTS[11]);
     ALGEBRAIC[41] = CONSTANTS[9] * STATES[7] * (ALGEBRAIC[39] * STATES[8] + (1.00000 - ALGEBRAIC[39]) * STATES[9]) *
-                    (STATES[0] - CONSTANTS[10]);
+                    (STATES[0] - CONSTANTS[10]); // ICaL default
+
+    // ORd
+    State S, D; // 'static' is used to avoid memory reallocation every function call
+    create_state_struct_from_array(&S, STATES);
+    ALGEBRAIC[70] = ical_ord(&S, &D, CONSTANTS);
+    STATES[30] = S.d_ord; RATES[30] = D.d_ord;
+    STATES[31] = S.ff; RATES[31] = D.ff;
+    STATES[32] = S.fs; RATES[32] = D.fs;
+    STATES[33] = S.fcaf; RATES[33] = D.fcaf;
+    STATES[34] = S.fcas; RATES[34] = D.fcas;
+    STATES[35] = S.jca; RATES[35] = D.jca;
+    STATES[36] = S.ffp; RATES[36] = D.ffp;
+    STATES[37] = S.fcafp; RATES[37] = D.fcafp;
+    STATES[38] = S.nca; RATES[38] = D.nca;
+    // ORd end
+
     ALGEBRAIC[51] = ((CONSTANTS[0] * CONSTANTS[1]) / (2.00000 * CONSTANTS[2])) * log(STATES[18] / STATES[19]);
     ALGEBRAIC[52] = CONSTANTS[18] * (STATES[0] - ALGEBRAIC[51]);
     ALGEBRAIC[55] = (CONSTANTS[22] * STATES[19]) / (STATES[19] + CONSTANTS[23]);
     RATES[18] = (CONSTANTS[38] - STATES[18]) / CONSTANTS[36] +
-                ((ALGEBRAIC[41] + ALGEBRAIC[52] + ALGEBRAIC[55]) - 2.00000 * ALGEBRAIC[56]) /
+                ((ALGEBRAIC[41] /*ICaL*/ + ALGEBRAIC[70] /*ICaL_ORd*/ + ALGEBRAIC[52] + ALGEBRAIC[55]) - 2.00000 * ALGEBRAIC[56]) /
                 (2.00000 * CONSTANTS[33] * CONSTANTS[2]);
     RATES[1] = (CONSTANTS[37] - STATES[1]) / CONSTANTS[34] +
                (ALGEBRAIC[37] + ALGEBRAIC[50] + 3.00000 * ALGEBRAIC[56] + 3.00000 * ALGEBRAIC[54] + CONSTANTS[28]) /
                (CONSTANTS[33] * CONSTANTS[2]);
     ALGEBRAIC[58] = ((STATES[6] - STATES[19]) * 2.00000 * CONSTANTS[30] * CONSTANTS[2]) / CONSTANTS[31];
-    RATES[6] = -(ALGEBRAIC[41] + ALGEBRAIC[58]) / (2.00000 * CONSTANTS[30] * CONSTANTS[2]);
+    RATES[6] = -(ALGEBRAIC[41] /*ICaL*/ + ALGEBRAIC[70] /*ICaL_ORd*/ + ALGEBRAIC[58]) / (2.00000 * CONSTANTS[30] * CONSTANTS[2]);
     ALGEBRAIC[57] = (10.0000 / (1.00000 + (9.13652 * pow(1.00000, 0.477811)) / pow(CONSTANTS[27], 0.477811))) *
                     (0.0517000 + 0.451600 / (1.00000 + exp((STATES[0] + 59.5300) / 17.1800))) *
                     (STATES[0] - ALGEBRAIC[43]) * CONSTANTS[3];
-    ALGEBRAIC[59] = (ALGEBRAIC[37] + ALGEBRAIC[41] + ALGEBRAIC[44] + ALGEBRAIC[45] + ALGEBRAIC[46] + ALGEBRAIC[49] +
+    ALGEBRAIC[59] = (ALGEBRAIC[37] + ALGEBRAIC[41] /*ICaL*/ + ALGEBRAIC[70] /*ICaL_ORd*/ + ALGEBRAIC[44] + ALGEBRAIC[45] + ALGEBRAIC[46] + ALGEBRAIC[49] +
                      ALGEBRAIC[47] + ALGEBRAIC[50] + ALGEBRAIC[52] + ALGEBRAIC[54] + ALGEBRAIC[55] + ALGEBRAIC[56] +
                      ALGEBRAIC[57]) / CONSTANTS[3] + ALGEBRAIC[24];
     RATES[0] = -ALGEBRAIC[59] * 1000.00;
@@ -469,114 +687,55 @@ void computeRates(double VOI, double *CONSTANTS, double *RATES, double *STATES, 
 }
 
 
-void create_state_struct_from_array(State *S, double *STATES) {
-    S->V = STATES[0];
-    S->Na_c = STATES[1];
-    S->Na_i = STATES[2];
-    S->m = STATES[3];
-    S->h1 = STATES[4];
-    S->h2 = STATES[5];
-    S->Ca_d = STATES[6];
-    S->d_L = STATES[7];
-    S->f_L1 = STATES[8];
-    S->f_L2 = STATES[9];
-    S->K_c = STATES[10];
-    S->K_i = STATES[11];
-    S->r = STATES[12];
-    S->s = STATES[13];
-    S->a_ur = STATES[14];
-    S->i_ur = STATES[15];
-    S->n = STATES[16];
-    S->pa = STATES[17];
-    S->Ca_c = STATES[18];
-    S->Ca_i = STATES[19];
-    S->O_C = STATES[20];
-    S->O_TC = STATES[21];
-    S->O_TMgC = STATES[22];
-    S->O_TMgMg = STATES[23];
-    S->O = STATES[24];
-    S->Ca_rel = STATES[25];
-    S->Ca_up = STATES[26];
-    S->O_Calse = STATES[27];
-    S->F1 = STATES[28];
-    S->F2 = STATES[29];
-}
-
-
-void initialize_states(double *STATES, State *initial_state) {
-    STATES[0] = initial_state->V;
-    STATES[1] = initial_state->Na_c;
-    STATES[2] = initial_state->Na_i;
-    STATES[3] = initial_state->m;
-    STATES[4] = initial_state->h1;
-    STATES[5] = initial_state->h2;
-    STATES[6] = initial_state->Ca_d;
-    STATES[7] = initial_state->d_L;
-    STATES[8] = initial_state->f_L1;
-    STATES[9] = initial_state->f_L2;
-    STATES[10] = initial_state->K_c;
-    STATES[11] = initial_state->K_i;
-    STATES[12] = initial_state->r;
-    STATES[13] = initial_state->s;
-    STATES[14] = initial_state->a_ur;
-    STATES[15] = initial_state->i_ur;
-    STATES[16] = initial_state->n;
-    STATES[17] = initial_state->pa;
-    STATES[18] = initial_state->Ca_c;
-    STATES[19] = initial_state->Ca_i;
-    STATES[20] = initial_state->O_C;
-    STATES[21] = initial_state->O_TC;
-    STATES[22] = initial_state->O_TMgC;
-    STATES[23] = initial_state->O_TMgMg;
-    STATES[24] = initial_state->O;
-    STATES[25] = initial_state->Ca_rel;
-    STATES[26] = initial_state->Ca_up;
-    STATES[27] = initial_state->O_Calse;
-    STATES[28] = initial_state->F1;
-    STATES[29] = initial_state->F2;
-}
-
-
 void create_header_csv(std::ofstream &file_csv) {
 
-    file_csv << "V,Na_c,Na_i,m,h1,h2,Ca_d,d_L,f_L1,f_L2,K_c,K_i,r,s,a_ur,i_ur,n,pa,Ca_c,Ca_i,O_C,O_TC,O_TMgC,O_TMgMg,O,Ca_rel,Ca_up,O_Calse,F1,F2";
+    file_csv << "V,Na_c,Na_i,m,h1,h2,Ca_d,d_L,f_L1,f_L2,K_c,K_i,r,s,a_ur,i_ur,n,pa,Ca_c,Ca_i,O_C,O_TC,O_TMgC,O_TMgMg,O,Ca_rel,Ca_up,O_Calse,F1,F2,d_ord,ff,fs,fcaf,fcas,jca,ffp,fcafp,nca,ICaL,ICaL_ORd,";
+    file_csv << "i_Na,i_Ca_L,i_t,i_Kur,i_K1,i_Kr,i_Ks,i_B_Na,i_B_Ca,i_NaK,i_CaP,i_NaCa,i_KACh,i_Stim,i_ur_infinity,i_di,i_up,i_rel,i_tr,i_rel_f2,i_rel_factor";
     file_csv << std::endl;
 };
 
-void print_to_scv(double *STATES, std::ofstream &file_csv) {
+void print_to_scv(double *STATES, double *ALGEBRAIC, std::ofstream &file_csv) {
 
-    file_csv.precision(5);
+    file_csv.precision(3);
     file_csv << std::scientific;
     file_csv << STATES[0] << "," << STATES[1] << "," << STATES[2] << "," << STATES[3] << "," << STATES[4] << ","
              << STATES[5] << "," << STATES[6] << "," << STATES[7] << "," << STATES[8] << "," << STATES[9] << ","
              << STATES[10] << "," << STATES[11] << "," << STATES[12] << "," << STATES[13] << "," << STATES[14] << ","
              << STATES[15] << "," << STATES[16] << "," << STATES[17] << "," << STATES[18] << "," << STATES[19] << ","
              << STATES[20] << "," << STATES[21] << "," << STATES[22] << "," << STATES[23] << "," << STATES[24] << ","
-             << STATES[25] << "," << STATES[26] << "," << STATES[27] << "," << STATES[28] << "," << STATES[29];
+             << STATES[25] << "," << STATES[26] << "," << STATES[27] << "," << STATES[28] << "," << STATES[29] << ","
+             << STATES[30] << "," << STATES[31] << "," << STATES[32] << "," << STATES[33] << "," << STATES[34] << ","
+             << STATES[35] << "," << STATES[36] << "," << STATES[37] << "," << STATES[38] << "," << ALGEBRAIC[41] << ","
+             << ALGEBRAIC[70] << ",";
+    file_csv << ALGEBRAIC[37] << "," << ALGEBRAIC[41] << "," << ALGEBRAIC[44] << "," << ALGEBRAIC[45] << ","
+             << ALGEBRAIC[46] << "," << ALGEBRAIC[49] << "," << ALGEBRAIC[47] << "," << ALGEBRAIC[50] << ","
+             << ALGEBRAIC[52] << "," << ALGEBRAIC[54] << "," << ALGEBRAIC[55] << "," << ALGEBRAIC[56] << ","
+             << ALGEBRAIC[57] << "," << ALGEBRAIC[24] << "," << ALGEBRAIC[9] << "," << ALGEBRAIC[58] << ","
+             << ALGEBRAIC[67] << "," << ALGEBRAIC[66] << "," << ALGEBRAIC[68] << "," << ALGEBRAIC[64] << ","
+             << ALGEBRAIC[65];
     file_csv << std::endl;
 }
 
 
 int main() {
 
-    int CONSTANT_ARRAY_SIZE = 51;
-    int ALGEBRAIC_ARRAY_SIZE = 70;
-    int STATE_ARRAY_SIZE = 30;
+    int CONSTANT_ARRAY_SIZE = 52; // 51 + pca_ord
+    int ALGEBRAIC_ARRAY_SIZE = 71; // 70 + ICaL_ORd
+    int STATE_ARRAY_SIZE = 39; // 30 + 9 ORd params
 
     double *CONSTANTS = new double[CONSTANT_ARRAY_SIZE];
     double *ALGEBRAIC = new double[ALGEBRAIC_ARRAY_SIZE];
     double *STATES = new double[STATE_ARRAY_SIZE];
     double *RATES = new double[STATE_ARRAY_SIZE];
 
-    double scaling_coefficients[14] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-
-    //initConsts(CONSTANTS, RATES, STATES);
+    double scaling_coefficients[15] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}; // last is ICaL_ORd
 
     double CL = 1000;
     double amp = -40;
     initialize_constants(CONSTANTS, scaling_coefficients, CL / 1000, amp);
 
-    /*
+
+
     struct State initial_state;
     FILE *fin;
     std::string state_initial_filename = "states/state_1000.dat";
@@ -585,20 +744,19 @@ int main() {
     fclose(fin);
 
     initialize_states(STATES, &initial_state);
-     */
-    initialize_states_default(STATES);
+    //initialize_states_default(STATES);
 
     std::ofstream file_csv;
     file_csv.open("./data.csv");
     create_header_csv(file_csv);
 
-    double t = 0, dt = 1e-3, ft = CL * 3;
+    double t = 0, dt = 1e-3, ft = CL * 10;
     int dt_counter = 0, skip = 0.1 / dt;
 
     while (t <= ft) {
 
         if (dt_counter % skip == 0) {
-            print_to_scv(STATES, file_csv);
+            print_to_scv(STATES, ALGEBRAIC, file_csv);
         }
 
         computeRates(t / 1000, CONSTANTS, RATES, STATES, ALGEBRAIC);
