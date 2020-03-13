@@ -345,7 +345,7 @@ void initialize_constants(double *CONSTANTS, double *scaling_coefficients, doubl
     CONSTANTS[4] = 0; // stim_offset in seconds
     CONSTANTS[5] = CL; // stim_period (CL) in seconds
     CONSTANTS[6] = 0.001; // stim_duration in seconds
-    CONSTANTS[7] = amp; // stim_amplitude in pA/pF
+    CONSTANTS[7] = amp; // stim_amplitude in pA/nF
 
     CONSTANTS[8] = 0.0018 * scaling_coefficients[0]; // P_Na
     CONSTANTS[9] = 6.75 * scaling_coefficients[1]; // g_Ca_L
@@ -377,9 +377,9 @@ void initialize_constants(double *CONSTANTS, double *scaling_coefficients, doubl
     CONSTANTS[34] = 14.3;
     CONSTANTS[35] = 10;
     CONSTANTS[36] = 24.7;
-    CONSTANTS[37] = 130;
-    CONSTANTS[38] = 1.8;
-    CONSTANTS[39] = 5.4;
+    CONSTANTS[37] = 140; // Na_c -> 140 VANESSA
+    CONSTANTS[38] = 2; // Ca_c -> 2 VANESSA
+    CONSTANTS[39] = 4; // K_i -> 4 VANESSA
     CONSTANTS[40] = 2800 * scaling_coefficients[12]; // I_up_max
     CONSTANTS[41] = 0.0003;
     CONSTANTS[42] = 0.5;
@@ -395,10 +395,9 @@ void initialize_constants(double *CONSTANTS, double *scaling_coefficients, doubl
     CONSTANTS[51] = 1e-4 * scaling_coefficients[14]; // pca_ord cm/s
 }
 
-
 void initialize_states_default(double *STATES) {
     STATES[0] = -74.031982;
-    STATES[1] = 130.022096; // Na_c -> 140 VANESSA
+    STATES[1] = 130.022096;
     STATES[2] = 8.516766;
     STATES[3] = 0.003289;
     STATES[4] = 0.877202;
@@ -407,7 +406,7 @@ void initialize_states_default(double *STATES) {
     STATES[7] = 0.000014;
     STATES[8] = 0.998597;
     STATES[9] = 0.998586;
-    STATES[10] = 5.560224; // K_i -> 4 VANESSA
+    STATES[10] = 5.560224;
     STATES[11] = 129.485991;
     STATES[12] = 0.001089;
     STATES[13] = 0.948597;
@@ -415,7 +414,7 @@ void initialize_states_default(double *STATES) {
     STATES[15] = 0.96729;
     STATES[16] = 0.004374;
     STATES[17] = 0.000053;
-    STATES[18] = 1.815768; // Ca_c ->2 VANESSA
+    STATES[18] = 1.815768;
     STATES[19] = 6.5e-5;
     STATES[20] = 0.026766;
     STATES[21] = 0.012922;
@@ -476,7 +475,9 @@ inline double calculate_td(double v) {
 
 double ical_ord(struct State *S, struct State *D, double *CONSTANTS) {
 
-    double dss = calculate_dss(S->V); // dimensionless
+    //double dss = calculate_dss(S->V); // dimensionless
+    double dss = (S->V < 31.4978) ? 1.0763 * exp(-1.0070 * exp(-0.0829 * S->V)) : 1; // ToR_ORd
+
     double fss = calculate_fss(S->V); // dimensionless
     double td = calculate_td(S->V) /*ms*/ / 1000.; // sec
     double tff = calculate_tff(S->V) /*ms*/ / 1000.; // sec
@@ -502,8 +503,9 @@ double ical_ord(struct State *S, struct State *D, double *CONSTANTS) {
     double anca = 1.0 / (k2n / km2n + pow(1.0 + Kmn / S->Ca_d, 4.0));
 
     double R = CONSTANTS[0], TEMP = CONSTANTS[1], FRD = CONSTANTS[2];
+    double gamma_ca_i = 0.61, gamma_ca_o = 0.66;
     double PhiCaL = 4.0 * (S->V * FRD * FRD / (R * TEMP)) *
-                    (S->Ca_d * exp(2.0 * (S->V * FRD / (R * TEMP))) - 0.341 * S->Ca_c) /
+                    (gamma_ca_i * S->Ca_d * exp(2.0 * (S->V * FRD / (R * TEMP))) - gamma_ca_o * S->Ca_c) /
                     (exp(2.0 * (S->V * FRD / (R * TEMP))) - 1.0);
 
     // Rush-Larsen method was used in ORd
@@ -599,8 +601,11 @@ void computeRates(double VOI, double *CONSTANTS, double *RATES, double *STATES, 
     ALGEBRAIC[54] = (((((CONSTANTS[20] * STATES[10]) / (STATES[10] + CONSTANTS[19])) * ALGEBRAIC[53]) /
                       (ALGEBRAIC[53] + CONSTANTS[21])) * (STATES[0] + 150.000)) / (STATES[0] + 200.000);
     ALGEBRAIC[1] = floor(VOI / CONSTANTS[5]) * CONSTANTS[5];
-    ALGEBRAIC[24] = (VOI - ALGEBRAIC[1] >= CONSTANTS[4] && VOI - ALGEBRAIC[1] <= CONSTANTS[4] + CONSTANTS[6]
-                     ? CONSTANTS[7] : 0.00000);
+
+    // Ist
+    //ALGEBRAIC[24] = (VOI - ALGEBRAIC[1] >= CONSTANTS[4] && VOI - ALGEBRAIC[1] <= CONSTANTS[4] + CONSTANTS[6]
+    //                 ? CONSTANTS[7] : 0.00000);
+
     RATES[11] = -(((ALGEBRAIC[44] + ALGEBRAIC[45] + ALGEBRAIC[46] + ALGEBRAIC[47] + ALGEBRAIC[49]) -
                    2.00000 * ALGEBRAIC[54]) + ALGEBRAIC[24] * CONSTANTS[3]) / (CONSTANTS[29] * CONSTANTS[2]);
     RATES[10] = (CONSTANTS[39] - STATES[10]) / CONSTANTS[35] +
@@ -625,11 +630,10 @@ void computeRates(double VOI, double *CONSTANTS, double *RATES, double *STATES, 
     RATES[2] = -(ALGEBRAIC[37] + ALGEBRAIC[50] + 3.00000 * ALGEBRAIC[56] + 3.00000 * ALGEBRAIC[54] + CONSTANTS[28]) /
                (CONSTANTS[29] * CONSTANTS[2]);
     ALGEBRAIC[39] = STATES[6] / (STATES[6] + CONSTANTS[11]);
-    ALGEBRAIC[41] = CONSTANTS[9] * STATES[7] * (ALGEBRAIC[39] * STATES[8] + (1.00000 - ALGEBRAIC[39]) * STATES[9]) *
-                    (STATES[0] - CONSTANTS[10]); // ICaL default
 
-    // ORd
-    State S, D; // 'static' is used to avoid memory reallocation every function call
+
+    // ICaL ORd
+    State S, D;
     create_state_struct_from_array(&S, STATES);
     ALGEBRAIC[70] = ical_ord(&S, &D, CONSTANTS);
     STATES[30] = S.d_ord; RATES[30] = D.d_ord;
@@ -642,6 +646,26 @@ void computeRates(double VOI, double *CONSTANTS, double *RATES, double *STATES, 
     STATES[37] = S.fcafp; RATES[37] = D.fcafp;
     STATES[38] = S.nca; RATES[38] = D.nca;
     // ORd end
+
+
+    // ICaL maleckar. Nernstian (default)
+    //ALGEBRAIC[41] = CONSTANTS[9] * STATES[7] * (ALGEBRAIC[39] * STATES[8] + (1.00000 - ALGEBRAIC[39]) * STATES[9]) *
+    //                (STATES[0] - CONSTANTS[10]);
+    double g_Ca_L = CONSTANTS[9], f_Ca = ALGEBRAIC[39], ECa = CONSTANTS[10];
+    ALGEBRAIC[41] = g_Ca_L * S.d_L * S.f_L1 * (f_Ca * S.f_L1 + (1.0 - f_Ca) * S.f_L2) * (S.V - ECa);
+
+    // ICaL maleckar. GHK
+    /*
+    double gamma_ca_i = 0.61, gamma_ca_o = 0.66;
+    double R = CONSTANTS[0], TEMP = CONSTANTS[1], FRD = CONSTANTS[2];
+    double PhiCaL = 4.0 * (S.V * FRD * FRD / (R * TEMP)) *
+                    (gamma_ca_i * S.Ca_d * exp(2.0 * (S.V * FRD / (R * TEMP))) - gamma_ca_o * S.Ca_c) /
+                    (exp(2.0 * (S.V * FRD / (R * TEMP))) - 1.0);
+
+    double PCa = 3e-3;
+    ALGEBRAIC[41] = PCa * PhiCaL * S.d_L * S.f_L1 * (f_Ca * S.f_L1 + (1.0 - f_Ca) * S.f_L2);
+     */
+
 
     ALGEBRAIC[51] = ((CONSTANTS[0] * CONSTANTS[1]) / (2.00000 * CONSTANTS[2])) * log(STATES[18] / STATES[19]);
     ALGEBRAIC[52] = CONSTANTS[18] * (STATES[0] - ALGEBRAIC[51]);
@@ -719,50 +743,89 @@ void print_to_scv(double *STATES, double *ALGEBRAIC, std::ofstream &file_csv) {
 
 int main() {
 
+    int chain_length = 1;
+
     int CONSTANT_ARRAY_SIZE = 52; // 51 + pca_ord
     int ALGEBRAIC_ARRAY_SIZE = 71; // 70 + ICaL_ORd
     int STATE_ARRAY_SIZE = 39; // 30 + 9 ORd params
 
     double *CONSTANTS = new double[CONSTANT_ARRAY_SIZE];
     double *ALGEBRAIC = new double[ALGEBRAIC_ARRAY_SIZE];
-    double *STATES = new double[STATE_ARRAY_SIZE];
-    double *RATES = new double[STATE_ARRAY_SIZE];
+    double *STATES = new double[STATE_ARRAY_SIZE * chain_length];
+    double *RATES = new double[STATE_ARRAY_SIZE * chain_length];
 
     double scaling_coefficients[15] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}; // last is ICaL_ORd
 
-    double CL = 1000;
+    double CL = 1000.;
     double amp = -40;
     initialize_constants(CONSTANTS, scaling_coefficients, CL / 1000, amp);
 
-
-
+    /*
     struct State initial_state;
     FILE *fin;
-    std::string state_initial_filename = "states/state_1000.dat";
+    std::string state_initial_filename = "state_initial.dat";
     fin = fopen(state_initial_filename.c_str(), "r");
     fread(&initial_state, sizeof(struct State), 1, fin);
     fclose(fin);
+     */
 
-    initialize_states(STATES, &initial_state);
-    //initialize_states_default(STATES);
+    for (int i = 0; i < chain_length; ++i) {
+        //initialize_states(STATES, &initial_state);
+        initialize_states_default(STATES + i * STATE_ARRAY_SIZE);
+    }
 
     std::ofstream file_csv;
     file_csv.open("./data.csv");
     create_header_csv(file_csv);
 
-    double t = 0, dt = 1e-3, ft = CL * 10;
-    int dt_counter = 0, skip = 0.1 / dt;
+    int n_beats = 10;
+    double t = 0, dt = 1e-3, ft = CL * n_beats;
+    int beats_save = 10e7;
+    int dt_counter = 0, skip = 1. / dt;
 
     while (t <= ft) {
 
-        if (dt_counter % skip == 0) {
-            print_to_scv(STATES, ALGEBRAIC, file_csv);
+        if ((dt_counter % skip == 0) && (t >= CL * (n_beats - beats_save))){
+            print_to_scv(STATES + 0 * STATE_ARRAY_SIZE, ALGEBRAIC, file_csv); // (chain_length - 1)
+            /*
+            for (int i = 0; i < chain_length; ++i) {
+                std::cout << STATES[STATE_ARRAY_SIZE * i] << " ";
+            }
+            std::cout << std::endl;
+             */
         }
 
-        computeRates(t / 1000, CONSTANTS, RATES, STATES, ALGEBRAIC);
+        double VOI = t / 1000;
 
-        for (int i = 0; i < STATE_ARRAY_SIZE; ++i) {
-            STATES[i] += (dt / 1000) * RATES[i];
+        for (int i = 0; i < chain_length; ++i) {
+
+            /*stimulation*/
+            double Ist = ((VOI - ALGEBRAIC[1] >= CONSTANTS[4]) && (VOI - ALGEBRAIC[1] <= CONSTANTS[4] + CONSTANTS[6]) &&
+                          (i == 0) ? CONSTANTS[7] : 0.0);
+            ALGEBRAIC[24] = Ist;
+
+            /*maleckar*/
+            computeRates(VOI, CONSTANTS,
+                         RATES + i * STATE_ARRAY_SIZE,
+                         STATES + i * STATE_ARRAY_SIZE,
+                         ALGEBRAIC);
+
+            /* diffusion */
+            double g_gap_junc = 1.0;
+            double I_gap_junc = 0;
+            if (i < chain_length - 1) {
+                I_gap_junc += -g_gap_junc * (STATES[STATE_ARRAY_SIZE * (i + 1) + 0] - STATES[STATE_ARRAY_SIZE * i + 0]);
+            }
+            if (i > 0) {
+                I_gap_junc += -g_gap_junc * (STATES[STATE_ARRAY_SIZE * (i - 1) + 0] - STATES[STATE_ARRAY_SIZE * i + 0]);
+            }
+            RATES[STATE_ARRAY_SIZE * i + 0] -= I_gap_junc * 1000;
+        }
+
+        for (int i = 0; i < chain_length; ++i) {
+            for (int j = 0; j < STATE_ARRAY_SIZE; ++j) {
+                STATES[i * STATE_ARRAY_SIZE + j] += (dt / 1000) * RATES[i * STATE_ARRAY_SIZE + j];
+            }
         }
 
         t += dt;
@@ -780,6 +843,10 @@ int main() {
     }
 
     file_csv.close();
+    delete [] CONSTANTS;
+    delete [] STATES;
+    delete [] RATES;
+    delete [] ALGEBRAIC;
 
     return 0;
 }
